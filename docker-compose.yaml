@@ -1,0 +1,94 @@
+version: "3.7"
+services:
+
+  grafana:
+    image: grafana/grafana:9.3.1
+    restart: always
+    volumes:
+      - ./monitoring/grafana/grafana.ini:/etc/grafana/grafana.ini:ro
+      - ./monitoring/grafana/datasource.yaml:/etc/grafana/provisioning/datasources/datasource.yaml:ro
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - 3000:3000
+
+  prometheus:
+    image: prom/prometheus:v2.41.0
+    restart: always
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+
+    ports:
+      - 127.0.0.1:9090:9090
+
+  node-exporter:
+    image: prom/node-exporter:v1.5.0
+    restart: always
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    ports:
+      - 127.0.0.1:9100:9100
+
+  mysql-exporter:
+    image: prom/mysqld-exporter:v0.14.0
+    restart: always
+    environment:
+      - DATA_SOURCE_NAME=exporter:mysqlexporter@(mysql:3306)/
+    ports:
+      - "127.0.0.1:9104:9104"
+    depends_on:
+      - mysql
+
+  nginx: 
+    image: nginx:1.22.1
+    restart: always
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - 80:80
+
+
+  plantuml:
+    image: plantuml/plantuml-server:v1.2022.14
+    restart: always
+    ports:
+      - 9999:8080
+
+  mysql:
+    image: mysql:5.7
+    restart: always
+    environment:
+      MYSQL_DATABASE: base
+      MYSQL_USER: exporter
+      MYSQL_PASSWORD: mysqlexporter
+      MYSQL_ROOT_PASSWORD: secret
+    volumes:
+      - mysql_data:/var/lib/mysql:rw
+    ports:
+      - "127.0.0.1:3306:3306"
+
+  gitlab:
+    image: gitlab/gitlab-ce:15.7.3-ce.0
+    restart: always
+    ports:
+      - '81:80'
+      - '22:22'
+    volumes:
+     - ./gitlab/config/gitlab.rb:/etc/gitlab/gitlab.rb:ro
+     - gitlab_data:/var/opt/gitlab
+
+
+
+volumes:
+  grafana_data: {}
+  prometheus_data: {}
+  mysql_data: {}
+  gitlab_data: {}
